@@ -1,5 +1,4 @@
 library(ggplot2)
-install.packages("corrplot")
 library(corrplot)
 
 data <- read.csv("Project/synthetic_fraud_dataset.csv")
@@ -37,5 +36,9 @@ print(correlation_matrix)
 #heatmap
 heatmap(correlation_matrix, main="Correlation Heatmap", col=topo.colors(10), symm=TRUE)
 corrplot(correlation_matrix, method="circle", type="lower", tl.col="black", tl.cex=0.8)
+
+#correlation test
+cor_test <- cor.test(numeric_data$Transaction_Amount, numeric_data$Account_Balance)
+print(cor_test)
 
 
