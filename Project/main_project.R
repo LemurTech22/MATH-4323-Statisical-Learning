@@ -77,3 +77,10 @@ if (nrow(strong_correlations) == 0) {
   }
 }
 
+
+#splitting data up!
+set.seed(1)
+train_idx <- sample(1:nrow(numeric_data), 0.7*nrow(numeric_data))
+train <- numeric_data[train_idx, c("Failed_Transaction_Count_7d", "Risk_Score")]
+test <- numeric_data[-train_idx,c("Fraud_Label")]
+
