@@ -41,15 +41,20 @@ corrplot(correlation_matrix, method="circle", type="lower", tl.col="black", tl.c
 #cor_test <- cor.test(numeric_data$Transaction_Amount, numeric_data$Account_Balance)
 #print(cor_test)
 
-# Find strong correlations (absolute value > 0.7)
-strong_correlations <- which(abs(correlation_matrix) > 0.7, arr.ind = TRUE)
+# Exclude self-correlations (diagonal values)
+strong_correlations <- which(abs(correlation_matrix) > 0.5 & row(correlation_matrix) != col(correlation_matrix), arr.ind = TRUE)
+print(strong_correlations)
 
 # Display variable pairs with high correlation values
-for (i in 1:nrow(strong_correlations)) {
-  var1 <- rownames(correlation_matrix)[strong_correlations[i, 1]]
-  var2 <- colnames(correlation_matrix)[strong_correlations[i, 2]]
-  correlation_value <- correlation_matrix[var1, var2]
-  cat(paste(var1, "and", var2, "have a correlation of", round(correlation_value, 2), "\n"))
+if (nrow(strong_correlations) == 0) {
+  cat("No variable pairs found with absolute correlation > 0.5\n")
+} else {
+  # Display variable pairs with high correlation values
+  for (i in 1:nrow(strong_correlations)) {
+    var1 <- rownames(correlation_matrix)[strong_correlations[i, 1]]
+    var2 <- colnames(correlation_matrix)[strong_correlations[i, 2]]
+    correlation_value <- correlation_matrix[var1, var2]
+    cat(paste(var1, "and", var2, "have a correlation of", round(correlation_value, 2), "\n"))
+  }
 }
-
 
