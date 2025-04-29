@@ -1,9 +1,11 @@
 install.packages("tidyverse")
 install.packages("ggplot")
 install.packages("corrplot")
+install.packages("e1071")
 library(ggplot2)
 library(corrplot)
 library(tidyverse)
+library(e1071)
 
 data <- read.csv("Project/synthetic_fraud_dataset.csv")
 
@@ -12,8 +14,6 @@ head(data)
 
 print("Summary of Data")
 summary(data)
-
-is.null(data)
 
 print(paste("There is",sum(is.na(data)),"null values"))
 
@@ -47,7 +47,6 @@ boxplot(data$Risk_Score~data$Fraud_Label, xlab = "Fraud Label (0 = Not Fraud, 1 
 
 pairs(numeric_data)
 
-
 #correlation matrix
 correlation_matrix <-cor(numeric_data, use="complete.obs")
 print(correlation_matrix)
@@ -77,10 +76,48 @@ if (nrow(strong_correlations) == 0) {
   }
 }
 
-
+plot(data$Failed_Transaction_Count_7d,data$Risk_Score)
 #splitting data up!
-set.seed(1)
-train_idx <- sample(1:nrow(numeric_data), 0.7*nrow(numeric_data))
-train <- numeric_data[train_idx, c("Failed_Transaction_Count_7d", "Risk_Score")]
-test <- numeric_data[-train_idx,c("Fraud_Label")]
 
+# 1. Split
+train_idx <- sample(1:nrow(numeric_data), 0.7 * nrow(numeric_data))
+x <- numeric_data[, c("Failed_Transaction_Count_7d", "Risk_Score")]
+y <- numeric_data$Fraud_Label
+
+train_x <- x[train_idx, ]
+test_x  <- x[-train_idx, ]
+train_y <- y[train_idx]
+test_y  <- y[-train_idx]
+plot(x)
+# Scale
+scaled_train_x <- scale(train_x)
+head(scaled_train_x)
+plot(scaled_train_x)
+colnames(scaled_train_x) <- colnames(train_x)
+
+train_data <- data.frame(scaled_train_x, Fraud_Label = as.factor(train_y))
+
+# Train SVM
+svmfit <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear")
+
+
+# Plot
+plot(svmfit, train_data, Failed_Transaction_Count_7d ~ Risk_Score)
+
+# Scale test data properly
+train_mean <- attr(scaled_train_x, "scaled:center")
+train_sd   <- attr(scaled_train_x, "scaled:scale")
+
+scaled_test_x <- scale(test_x, center = train_mean, scale = train_sd)
+test_data <- data.frame(scaled_test_x)
+
+# Predict
+predictions <- predict(svmfit, newdata = test_data)
+
+# Evaluate
+test_y <- as.factor(test_y)
+conf_matrix <- table(Predicted = predictions, Actual = test_y)
+print(conf_matrix)
+
+accuracy <- mean(predictions == test_y)
+accuracy
