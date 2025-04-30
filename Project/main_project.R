@@ -43,6 +43,7 @@ corrplot(correlation_matrix, method="circle", type="lower", tl.col="black", tl.c
 
 # Exclude self-correlations (diagonal values)
 strong_correlations <- which(abs(correlation_matrix) > 0.5 & row(correlation_matrix) != col(correlation_matrix), arr.ind = TRUE)
+strong_correlations <- strong_correlations[strong_correlations[, 1] < strong_correlations[, 2], ]
 print(strong_correlations)
 
 # Display variable pairs with high correlation values
