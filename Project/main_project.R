@@ -139,5 +139,11 @@ print(conf_matrix_knn)
 knn_accuracy <- mean(knn_predictions == test_y)
 print(paste("KNN Accuracy:", round(knn_accuracy * 100, 2), "%"))
 
+accuracies <- sapply(1:20, function(k) {
+  knn_predictions <- knn(train = scaled_train_x, test = scaled_test_x, cl = train_y, k = k)
+  mean(knn_predictions == test_y)
+})
+
+plot(1:20, accuracies, type = "b", xlab = "Number of Neighbors (k)", ylab = "Accuracy", main = "Optimal k for KNN")
 
 
