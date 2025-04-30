@@ -1,5 +1,11 @@
+install.packages("tidyverse")
+install.packages("ggplot")
+install.packages("corrplot")
+install.packages("e1071")
 library(ggplot2)
 library(corrplot)
+library(tidyverse)
+library(e1071)
 
 data <- read.csv("Project/synthetic_fraud_dataset.csv")
 
@@ -8,8 +14,6 @@ head(data)
 
 print("Summary of Data")
 summary(data)
-
-is.null(data)
 
 print(paste("There is",sum(is.na(data)),"null values"))
 
@@ -28,6 +32,20 @@ ggplot(df2, aes(x=Transaction_Type,y=Daily_Transaction_Count))+geom_boxplot()
 numeric_data <- df2[sapply(df2, is.numeric)]
 
 head(numeric_data)
+#added in plots
+hist(numeric_data$Avg_Transaction_Amount_7d)
+hist(numeric_data$Failed_Transaction_Count_7d, xlab="Average Failed Transactions 7D. ", ylab="Number of failed Transactions", main= "Number of Failed Transactions")
+hist(data$Is_Weekend, xlab="Weekend", main="Number of Transactions on the Weekend")
+hist(numeric_data$Card_Age, xlab="Card Age", main="Card Age in months")
+hist(numeric_data$Risk_Score, xlab = "Risk Score", main = "Risk Scores")
+
+barplot(table(data$Is_Weekend, data$Fraud_Label), beside = TRUE, xlab="Fraud Label (0 = Weekday, 1 = Weekend)", ylab="Weekend", main="Fraud on the weekend.")
+
+boxplot(data$Failed_Transaction_Count_7d~ data$Fraud_Label, xlab="Fraud Label (0 = Not Fraud, 1 = Weekend)", ylab = "Failed Transactions", main = "Failed Transactions Fraud")
+boxplot(numeric_data$Account_Balance~data$Fraud_Label, xlab="Fraud Label (0 = Not Fraud, 1 = Weekend)",ylab="Account Balances", main= "Balances on Fraud")
+boxplot(data$Risk_Score~data$Fraud_Label, xlab = "Fraud Label (0 = Not Fraud, 1 = Weekend)", ylab="Risk Score", main = "Risk Score detecting Fraud")
+
+pairs(numeric_data)
 
 #correlation matrix
 correlation_matrix <-cor(numeric_data, use="complete.obs")
@@ -59,3 +77,48 @@ if (nrow(strong_correlations) == 0) {
   }
 }
 
+plot(data$Failed_Transaction_Count_7d,data$Risk_Score)
+#splitting data up!
+
+# 1. Split
+train_idx <- sample(1:nrow(numeric_data), 0.7 * nrow(numeric_data))
+x <- numeric_data[, c("Failed_Transaction_Count_7d", "Risk_Score")]
+y <- numeric_data$Fraud_Label
+
+train_x <- x[train_idx, ]
+test_x  <- x[-train_idx, ]
+train_y <- y[train_idx]
+test_y  <- y[-train_idx]
+plot(x)
+# Scale
+scaled_train_x <- scale(train_x)
+head(scaled_train_x)
+plot(scaled_train_x)
+colnames(scaled_train_x) <- colnames(train_x)
+
+train_data <- data.frame(scaled_train_x, Fraud_Label = as.factor(train_y))
+
+# Train SVM
+svmfit <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear")
+
+
+# Plot
+plot(svmfit, train_data, Failed_Transaction_Count_7d ~ Risk_Score)
+
+# Scale test data properly
+train_mean <- attr(scaled_train_x, "scaled:center")
+train_sd   <- attr(scaled_train_x, "scaled:scale")
+
+scaled_test_x <- scale(test_x, center = train_mean, scale = train_sd)
+test_data <- data.frame(scaled_test_x)
+
+# Predict
+predictions <- predict(svmfit, newdata = test_data)
+
+# Evaluate
+test_y <- as.factor(test_y)
+conf_matrix <- table(Predicted = predictions, Actual = test_y)
+print(conf_matrix)
+
+accuracy <- mean(predictions == test_y)
+accuracy
