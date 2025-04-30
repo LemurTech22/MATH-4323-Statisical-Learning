@@ -2,10 +2,13 @@ install.packages("tidyverse")
 install.packages("ggplot")
 install.packages("corrplot")
 install.packages("e1071")
+install.packages("class")
+
 library(ggplot2)
 library(corrplot)
 library(tidyverse)
 library(e1071)
+library(class)
 
 data <- read.csv("Project/synthetic_fraud_dataset.csv")
 
@@ -65,10 +68,10 @@ strong_correlations <- strong_correlations[strong_correlations[, 1] < strong_cor
 print(strong_correlations)
 
 # Display variable pairs with high correlation values
-if (nrow(strong_correlations) == 0) {
+if (is.null(dim(strong_correlations)) || nrow(strong_correlations) == 0) {
   cat("No variable pairs found with absolute correlation > 0.5\n")
 } else {
-  # Display variable pairs with high correlation values
+  # Loop through and print correlations
   for (i in 1:nrow(strong_correlations)) {
     var1 <- rownames(correlation_matrix)[strong_correlations[i, 1]]
     var2 <- colnames(correlation_matrix)[strong_correlations[i, 2]]
@@ -76,6 +79,7 @@ if (nrow(strong_correlations) == 0) {
     cat(paste(var1, "and", var2, "have a correlation of", round(correlation_value, 2), "\n"))
   }
 }
+
 
 plot(data$Failed_Transaction_Count_7d,data$Risk_Score)
 #splitting data up!
@@ -122,3 +126,18 @@ print(conf_matrix)
 
 accuracy <- mean(predictions == test_y)
 accuracy
+
+#Build KNN model
+set.seed(123)
+# Run KNN
+knn_predictions <- knn(train = scaled_train_x, test = scaled_test_x, cl = train_y, k = 5)  # k = 5
+
+# Evaluate
+conf_matrix_knn <- table(Predicted = knn_predictions, Actual = test_y)
+print(conf_matrix_knn)
+
+knn_accuracy <- mean(knn_predictions == test_y)
+print(paste("KNN Accuracy:", round(knn_accuracy * 100, 2), "%"))
+
+
+
