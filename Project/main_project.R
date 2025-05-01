@@ -85,8 +85,8 @@ plot(data$Failed_Transaction_Count_7d,data$Risk_Score)
 #splitting data up!
 
 # 1. Split
-train_idx <- sample(1:nrow(numeric_data), 0.7 * nrow(numeric_data))
-x <- numeric_data[, c("Failed_Transaction_Count_7d", "Risk_Score")]
+train_idx <- sample(1:nrow(numeric_data), 0.8 * nrow(numeric_data))
+x <- numeric_data[, -which(names(numeric_data) == "Fraud_Label")]
 y <- numeric_data$Fraud_Label
 
 train_x <- x[train_idx, ]
@@ -103,11 +103,14 @@ colnames(scaled_train_x) <- colnames(train_x)
 train_data <- data.frame(scaled_train_x, Fraud_Label = as.factor(train_y))
 
 # Train SVM
-svmfit <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear")
+#compare linear kernel
+svmfit_linear <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear", gamma = .3)
 
+#radial kernel
+svmfit_radial <- svm(Fraud_Label ~ ., data = train_data, kernel = "radial", gamma = .3)
 
 # Plot
-plot(svmfit, train_data, Failed_Transaction_Count_7d ~ Risk_Score)
+plot(svmfit_linear, train_data, Failed_Transaction_Count_7d ~ Risk_Score)
 
 # Scale test data properly
 train_mean <- attr(scaled_train_x, "scaled:center")
@@ -117,7 +120,7 @@ scaled_test_x <- scale(test_x, center = train_mean, scale = train_sd)
 test_data <- data.frame(scaled_test_x)
 
 # Predict
-predictions <- predict(svmfit, newdata = test_data)
+predictions <- predict(svmfit_linear, newdata = test_data)
 
 # Evaluate
 test_y <- as.factor(test_y)
@@ -128,7 +131,7 @@ accuracy <- mean(predictions == test_y)
 accuracy
 
 #Build KNN model
-set.seed(123)
+
 # Run KNN
 knn_predictions <- knn(train = scaled_train_x, test = scaled_test_x, cl = train_y, k = 5)  # k = 5
 
@@ -147,3 +150,36 @@ accuracies <- sapply(1:20, function(k) {
 plot(1:20, accuracies, type = "b", xlab = "Number of Neighbors (k)", ylab = "Accuracy", main = "Optimal k for KNN")
 
 
+best_k <- NA
+best_accuracy <- 0
+accuracies <- c()
+
+for (i in 1:20){
+  set.seed(123+i)
+  train_idx <- sample(1:nrow(numeric_data), 0.8 * nrow(numeric_data))
+  x <- numeric_data[, -which(names(numeric_data) == "Fraud_Label")]
+  y <- numeric_data$Fraud_Label
+  
+  train_x <- x[train_idx, ]
+  test_x  <- x[-train_idx, ]
+  train_y <- y[train_idx]
+  test_y  <- y[-train_idx]
+  scaled_train_x <- scale(train_x)
+  scaled_test_x <- scale(test_x, center = attr(scaled_train_x, "scaled:center"),
+                         scale = attr(scaled_train_x, "scaled:scale"))
+  train_data <- data.frame(scaled_train_x, Fraud_Label = as.factor(train_y))
+  
+  set.seed(123)
+  knn.pred<- knn(train = scaled_train_x, test=scaled_test_x, cl = train_y, k=i)
+  print(table(knn.pred, test_y))
+  
+  cm<- table(knn.pred, test_y)
+  accuracy <- sum(diag(cm))/sum(cm)
+  accuracies[i] <- accuracy
+  if (accuracy > best_accuracy){
+    best_accuracy <- accuracy
+    best_k <- i
+  }
+  cat("k =", i, "| Accuracy =", round(accuracy, 4), "\n")
+}
+cat("\nBest k:", best_k, "with accuracy:", round(best_accuracy, 4), "\n")
