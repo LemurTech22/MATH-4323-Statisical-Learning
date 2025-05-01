@@ -3,12 +3,16 @@ install.packages("ggplot")
 install.packages("corrplot")
 install.packages("e1071")
 install.packages("class")
+#Install Packages
 
+#library Loading
 library(ggplot2)
 library(corrplot)
 library(tidyverse)
 library(e1071)
 library(class)
+
+#data loading
 
 data <- read.csv("Project/synthetic_fraud_dataset.csv")
 
@@ -18,9 +22,12 @@ head(data)
 print("Summary of Data")
 summary(data)
 
-print(paste("There is",sum(is.na(data)),"null values"))
+print(paste("There are",sum(is.na(data)),"null values"))
 
-print(paste("There is",sum(duplicated(data)),"duplicated Values"))
+print(paste("There are",sum(duplicated(data)),"duplicated Values"))
+
+#remove duplicated rows
+data <- data[!duplicated(data), ]
 
 #removed unnecessary columns
 df2 <- data[ , !(names(data) %in% c("Transaction_ID", "User_ID"))]
@@ -30,6 +37,7 @@ ggplot(df2, aes(x=Transaction_Type))+
 
 ggplot(df2, aes(x=Transaction_Type,y=Daily_Transaction_Count))+geom_boxplot()
 
+data$Fraud_Label <- as.factor(data$Fraud_Label)
 
 #selects the numeric columns in the dataset.
 numeric_data <- df2[sapply(df2, is.numeric)]
@@ -48,7 +56,7 @@ boxplot(data$Failed_Transaction_Count_7d~ data$Fraud_Label, xlab="Fraud Label (0
 boxplot(numeric_data$Account_Balance~data$Fraud_Label, xlab="Fraud Label (0 = Not Fraud, 1 = Weekend)",ylab="Account Balances", main= "Balances on Fraud")
 boxplot(data$Risk_Score~data$Fraud_Label, xlab = "Fraud Label (0 = Not Fraud, 1 = Weekend)", ylab="Risk Score", main = "Risk Score detecting Fraud")
 
-pairs(numeric_data)
+#pairs(numeric_data)
 
 #correlation matrix
 correlation_matrix <-cor(numeric_data, use="complete.obs")
@@ -81,10 +89,12 @@ if (is.null(dim(strong_correlations)) || nrow(strong_correlations) == 0) {
 }
 
 
-plot(data$Failed_Transaction_Count_7d,data$Risk_Score)
+#plot(data$Failed_Transaction_Count_7d,data$Risk_Score)
 #splitting data up!
 
 # 1. Split
+set.seed(123)
+
 train_idx <- sample(1:nrow(numeric_data), 0.8 * nrow(numeric_data))
 x <- numeric_data[, -which(names(numeric_data) == "Fraud_Label")]
 y <- numeric_data$Fraud_Label
@@ -93,24 +103,18 @@ train_x <- x[train_idx, ]
 test_x  <- x[-train_idx, ]
 train_y <- y[train_idx]
 test_y  <- y[-train_idx]
-plot(x)
+
+#plot(x)
+
+
 # Scale
 scaled_train_x <- scale(train_x)
 head(scaled_train_x)
-plot(scaled_train_x)
+#plot(scaled_train_x)
 colnames(scaled_train_x) <- colnames(train_x)
 
 train_data <- data.frame(scaled_train_x, Fraud_Label = as.factor(train_y))
 
-# Train SVM
-#compare linear kernel
-svmfit_linear <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear", gamma = .3)
-
-#radial kernel
-svmfit_radial <- svm(Fraud_Label ~ ., data = train_data, kernel = "radial", gamma = .3)
-
-# Plot
-plot(svmfit_linear, train_data, Failed_Transaction_Count_7d ~ Risk_Score)
 
 # Scale test data properly
 train_mean <- attr(scaled_train_x, "scaled:center")
@@ -119,16 +123,40 @@ train_sd   <- attr(scaled_train_x, "scaled:scale")
 scaled_test_x <- scale(test_x, center = train_mean, scale = train_sd)
 test_data <- data.frame(scaled_test_x)
 
+# Train SVM
+#compare linear kernel
+
+svmfit_linear <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear", gamma = .3)
+
+#radial kernel
+svmfit_radial <- svm(Fraud_Label ~ ., data = train_data, kernel = "radial", gamma = .3)
+
+# Plot
+plot(svmfit_linear, train_data, Failed_Transaction_Count_7d ~ Risk_Score,
+     xlab = "Risk Score", ylab = "Failed Transactions", main = "SVM Model with Linear Kernel")
+
+plot(svmfit_radial, train_data, Failed_Transaction_Count_7d ~ Risk_Score,
+     xlab = "Risk Score", ylab = "Failed Transactions", main = "SVM Model with Radial Kernel")
+
 # Predict
-predictions <- predict(svmfit_linear, newdata = test_data)
+predictions_linear <- predict(svmfit_linear, newdata = test_data)
+predictions_radial <- predict(svmfit_radial, newdata = test_data)
 
 # Evaluate
 test_y <- as.factor(test_y)
-conf_matrix <- table(Predicted = predictions, Actual = test_y)
-print(conf_matrix)
 
-accuracy <- mean(predictions == test_y)
-accuracy
+conf_matrix_linear <- table(Predicted = predictions_linear, Actual = test_y)
+conf_matrix_radial <- table(Predicted = predictions_radial, Actual = test_y)
+print("Confusion Matrix: SVM with Linear Kernel:")
+print(conf_matrix_linear)
+
+print("Confusion Matrix: SVM with Radial Kernel:")
+print(conf_matrix_radial)
+
+accuracy_linear <- mean(predictions_linear == test_y)
+accuracy_radial <- mean(predictions_radial == test_y)
+print(paste("Accuracy for SVM Linear Kernel: ",accuracy_linear))
+print(paste("Accuracy for SVM Radial Kernel: ", accuracy_radial))
 
 #Build KNN model
 
@@ -147,9 +175,7 @@ accuracies <- sapply(1:20, function(k) {
   mean(knn_predictions == test_y)
 })
 
-plot(1:20, accuracies, type = "b", xlab = "Number of Neighbors (k)", ylab = "Accuracy", main = "Optimal k for KNN")
-
-
+#KNN finding the best K
 best_k <- NA
 best_accuracy <- 0
 accuracies <- c()
