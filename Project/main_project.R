@@ -3,6 +3,8 @@ install.packages("ggplot")
 install.packages("corrplot")
 install.packages("e1071")
 install.packages("class")
+install.packages("caret")
+install.packages("Metrics")
 #Install Packages
 
 #library Loading
@@ -11,7 +13,8 @@ library(corrplot)
 library(tidyverse)
 library(e1071)
 library(class)
-
+library(caret)
+library(Metrics)
 #data loading
 
 data <- read.csv("Project/synthetic_fraud_dataset.csv")
@@ -152,6 +155,11 @@ accuracy_radial <- mean(predictions_radial == test_y)
 print(paste("Accuracy for SVM Linear Kernel: ",accuracy_linear))
 print(paste("Accuracy for SVM Radial Kernel: ", accuracy_radial))
 
+cm_linear <- caret::confusionMatrix(conf_matrix_linear)
+print(cm_linear)
+
+cm_radial <- caret::confusionMatrix(conf_matrix_radial)
+print(cm_radial)
 #Build KNN model
 
 # Run KNN
@@ -168,7 +176,8 @@ accuracies <- sapply(1:20, function(k) {
   knn_predictions <- knn(train = scaled_train_x, test = scaled_test_x, cl = train_y, k = k)
   mean(knn_predictions == test_y)
 })
-
+cm <- caret::confusionMatrix(conf_matrix_knn)
+print(cm)
 #KNN finding the best K
 best_k <- NA
 best_accuracy <- 0
