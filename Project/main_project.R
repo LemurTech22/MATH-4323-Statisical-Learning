@@ -32,11 +32,6 @@ data <- data[!duplicated(data), ]
 #removed unnecessary columns
 df2 <- data[ , !(names(data) %in% c("Transaction_ID", "User_ID"))]
 
-ggplot(df2, aes(x=Transaction_Type))+
-  geom_bar()
-
-ggplot(df2, aes(x=Transaction_Type,y=Daily_Transaction_Count))+geom_boxplot()
-
 data$Fraud_Label <- as.factor(data$Fraud_Label)
 
 #selects the numeric columns in the dataset.
@@ -54,9 +49,9 @@ barplot(table(data$Is_Weekend, data$Fraud_Label), beside = TRUE, xlab="Fraud Lab
 
 boxplot(data$Failed_Transaction_Count_7d~ data$Fraud_Label, xlab="Fraud Label (0 = Not Fraud, 1 = Weekend)", ylab = "Failed Transactions", main = "Failed Transactions Fraud")
 boxplot(numeric_data$Account_Balance~data$Fraud_Label, xlab="Fraud Label (0 = Not Fraud, 1 = Weekend)",ylab="Account Balances", main= "Balances on Fraud")
-boxplot(data$Risk_Score~data$Fraud_Label, xlab = "Fraud Label (0 = Not Fraud, 1 = Weekend)", ylab="Risk Score", main = "Risk Score detecting Fraud")
+boxplot(data$Risk_Score~data$Fraud_Label, xlab = "Fraud Label (0 = Not Fraud, 1 = Weekend)", ylab="Risk Score", main = "Risk Score detecting Fraud", label = TRUE)
 
-#pairs(numeric_data)
+pairs(numeric_data)
 
 #correlation matrix
 correlation_matrix <-cor(numeric_data, use="complete.obs")
@@ -66,9 +61,6 @@ print(correlation_matrix)
 heatmap(correlation_matrix, main="Correlation Heatmap", col=topo.colors(10), symm=TRUE)
 corrplot(correlation_matrix, method="circle", type="lower", tl.col="black", tl.cex=0.8)
 
-#correlation test
-#cor_test <- cor.test(numeric_data$Transaction_Amount, numeric_data$Account_Balance)
-#print(cor_test)
 
 # Exclude self-correlations (diagonal values)
 strong_correlations <- which(abs(correlation_matrix) > 0.5 & row(correlation_matrix) != col(correlation_matrix), arr.ind = TRUE)
@@ -104,17 +96,15 @@ test_x  <- x[-train_idx, ]
 train_y <- y[train_idx]
 test_y  <- y[-train_idx]
 
-#plot(x)
-
+plot(x)
 
 # Scale
 scaled_train_x <- scale(train_x)
 head(scaled_train_x)
-#plot(scaled_train_x)
+plot(scaled_train_x)
 colnames(scaled_train_x) <- colnames(train_x)
 
 train_data <- data.frame(scaled_train_x, Fraud_Label = as.factor(train_y))
-
 
 # Scale test data properly
 train_mean <- attr(scaled_train_x, "scaled:center")
@@ -128,8 +118,10 @@ test_data <- data.frame(scaled_test_x)
 
 svmfit_linear <- svm(Fraud_Label ~ ., data = train_data, kernel = "linear", gamma = .3)
 
+summary(svmfit_linear)
 #radial kernel
 svmfit_radial <- svm(Fraud_Label ~ ., data = train_data, kernel = "radial", gamma = .3)
+summary(svmfit_radial)
 
 # Plot
 plot(svmfit_linear, train_data, Failed_Transaction_Count_7d ~ Risk_Score,
@@ -147,11 +139,13 @@ test_y <- as.factor(test_y)
 
 conf_matrix_linear <- table(Predicted = predictions_linear, Actual = test_y)
 conf_matrix_radial <- table(Predicted = predictions_radial, Actual = test_y)
+
 print("Confusion Matrix: SVM with Linear Kernel:")
 print(conf_matrix_linear)
 
 print("Confusion Matrix: SVM with Radial Kernel:")
 print(conf_matrix_radial)
+
 
 accuracy_linear <- mean(predictions_linear == test_y)
 accuracy_radial <- mean(predictions_radial == test_y)
